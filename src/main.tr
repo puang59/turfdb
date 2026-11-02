@@ -1,3 +1,4 @@
+import os;
 import input_buffer::InputBuffer;
 import input_buffer::print_prompt;
 import table::Table;
@@ -10,8 +11,14 @@ import meta_command::MetaCommandResult;
 import meta_command::do_meta_command;
 
 fn main(): int {
-    // the one and only table, lives in memory
-    mut table: Table = Table::new();
+    // the database file name is the first argument: turf run -- mydb.db
+    if os::argc() < 2 {
+        printline("Must supply a database filename.");
+        exit(1);
+    }
+
+    immut filename: string = os::argv(1);
+    mut table: Table = Table::new(filename);
     mut input_buffer: InputBuffer = InputBuffer::new();
 
     while true {
@@ -20,7 +27,7 @@ fn main(): int {
 
         // meta-commands (like .exit) are handled separately from SQL
         if input_buffer.buffer.starts_with(".") {
-            compare do_meta_command(&input_buffer) {
+            compare do_meta_command(&input_buffer, &table) {
                 matches MetaCommandResult::Success:
                 continue;
                 done

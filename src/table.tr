@@ -1,36 +1,34 @@
 import list::List;
 import row::Row;
+import pager::Pager;
+import pager::ROWS_PER_PAGE;
 
-// max rows = 14 rows per page * 100 pages
-export immut ROWS_PER_PAGE: int = 14;
-export immut TABLE_MAX_ROWS: int = 1400;
-
-// the table keeps rows in pages, a page is a small group of rows (14 here)
+// the table only knows how many rows it has, the pager holds the actual pages
 pub struct Table {
     pub num_rows: int,
-    // outer list = pages, inner list = rows inside one page
-    pub pages: List<List<Row>>
+    pub pager: Pager
 }
 
-pub fn Table.new(): void {
-    self.num_rows = 0;
-    self.pages = List::default();
+// db_open: open the file through the pager, row count comes from the file
+pub fn Table.new(filename: string): void {
+    self.pager = Pager::new(filename);
+    self.num_rows = self.pager.file_rows;
 }
 
 // get row number n: page = n / 14, position inside that page = n % 14
 pub fn Table.row_at(row_num: int): Row {
-    return self.pages[row_num / ROWS_PER_PAGE][row_num % ROWS_PER_PAGE];
+    immut page: List<Row> = self.pager.get_page(row_num/ ROWS_PER_PAGE);
+    return page[row_num % ROWS_PER_PAGE];
 }
 
 // add a row at the end of the table
 pub fn Table.append_row(row: Row): void {
-    immut page_num: int = self.num_rows / ROWS_PER_PAGE;
+    mut page: List<Row> = self.pager.get_page(self.num_rows / ROWS_PER_PAGE);
+    page.push(row);
+    self.num_rows += 1;
+}
 
-    if page_num >= self.pages.length() {
-        mut page: List<Row> = List::default();
-        self.pages.push(page);
-    }
-
-    self.pages[page_num].push(row);
-    self.num_rows = self.num_rows + 1;
+// db_close: save everything to the file
+pub fn Table.close(): void {
+    self.pager.flush(self.num_rows);
 }

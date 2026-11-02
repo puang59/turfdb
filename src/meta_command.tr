@@ -1,10 +1,13 @@
 import input_buffer::InputBuffer;
+import table::Table;
 
 pub enum MetaCommandResult { Success, UnrecognizedCommand }
 
 // handle commands that start with a dot - non-SQL commands
-pub fn do_meta_command(buf: &InputBuffer): MetaCommandResult {
+pub fn do_meta_command(buf: &InputBuffer, table: &Table): MetaCommandResult {
     if buf.buffer == ".exit" {
+        // save the table to disk before quitting
+        table.close();
         exit(0);
     }
     return MetaCommandResult::UnrecognizedCommand;

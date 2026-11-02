@@ -1,0 +1,93 @@
+import list::List;
+import row::Row;
+
+// sizes: a page holds 14 rows, the table holds at most 100 pages
+export immut ROWS_PER_PAGE: int = 14;
+export immut TABLE_MAX_PAGES: int = 100;
+export immut TABLE_MAX_ROWS: int = 1400;
+
+// the pager owns the page cache and the database file
+// the table asks it for page number x, it never touches the file itself
+pub struct Pager {
+    pub filename: string,
+    // how many rows were already in the file when we opened it
+    pub file_rows: int,
+    // the page cache: outer list = pages, inner list = rows inside one page
+    pub pages: List<List<Row>> 
+}
+
+// opens the database: remember the file name, then load its rows into page
+pub fn Pager.new(filename: string): void {
+    self.filename = filename;
+    self.file_rows = 0; 
+    self.pages = List::default();
+
+    // no file yet = brand new database (it gets created when we flush)
+    if !io::exists(filename) {
+        return;
+    }
+
+    immut lines: List<string> = io::read_lines(filename) recover run {
+        printline("Unable to open file");
+        exit(1);
+        return;
+    };
+
+    // one line per row: "<id> <username> <email>"
+    for i in 0..lines.length() {
+        immut parts: List<string> = lines[i].split(" ");
+        if parts.length() != 3 {
+            printline("Database file is corrupt.");
+            exit(1);
+        }
+
+        immut id: int = strings::parse_int(parts[0]) recover run {
+            printline("Database file is corrupt.");
+            exit(1);
+            return;
+        };
+
+        immut row: Row = Row::new(id, parts[1], parts[2]);
+        // calculate which page this row belongs to
+        // get the page and push the row in it
+        self.get_page(self.file_rows / ROWS_PER_PAGE).push(row);
+        // increment the exisiting row count
+        self.file_rows = self.file_rows + 1;
+    }
+}
+
+// give back page number page_num
+// if it isnt in the cache yet (a cache miss) create blank pages up to it
+pub fn Pager.get_page(page_num: int): List<Row> {
+    if page_num >= TABLE_MAX_PAGES {
+        printline("Tried to fetch page number ouf of bounds. " + (page_num to string) + " > " + (TABLE_MAX_PAGES to string));
+        exit(1);
+    } 
+
+    // allocating new pages to our in-memory cache
+    while self.pages.length() <= page_num {
+        mut page: List<Row> = List::default();
+        self.pages.push(page); // basically pushing to our cache
+    }
+
+    return self.pages[page_num];
+}
+
+// write the first num_rows rows to the file, one line per row
+// flushing is basically putting all the records from the in-memory cache to
+// disk - database file for persistence 
+pub fn Pager.flush(num_rows: int): void {
+    mut text: strings::StringBuilder = strings::StringBuilder::default();
+
+    for i in 0..num_rows {
+        immut page: List<Row> = self.get_page(i / ROWS_PER_PAGE); // which page contains the row?
+        immut row: Row = page[i % ROWS_PER_PAGE]; // where is the row inside that page?
+        // construct the record that is to be written in the file
+        text.append((row.id to string) + " " + row.username + " " + row.email + "\n");
+    }
+
+    io::write_string(self.filename, text.to_string()) recover run {
+        printline("Error writing file.");
+        exit(1);
+    };
+}

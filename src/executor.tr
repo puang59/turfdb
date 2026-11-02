@@ -1,7 +1,7 @@
 import row::Row;
 import row::print_row;
 import table::Table;
-import table::TABLE_MAX_ROWS;
+import pager::TABLE_MAX_ROWS;
 import statement::Statement;
 import statement::StatementType;
 
