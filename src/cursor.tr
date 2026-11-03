@@ -1,0 +1,45 @@
+import row::Row;
+import table::Table;
+
+// a cursor is a position in the table 
+// it holds a reference to the table, so its method need no table arg
+pub struct Cursor {
+    pub table: &Table,
+    pub row_num: int,
+    // true when the cursor is one position past the last row
+    pub end_of_table: bool
+}
+
+pub fn Cursor.new(table: &Table, row_num: int, end_of_table: bool): void {
+    self.table = table;
+    self.row_num = row_num;
+    self.end_of_table = end_of_table;
+}
+
+// cursor at the first row (already at the end if the table is empty)
+pub fn table_start(table: &Table): Cursor {
+    return Cursor::new(table, 0, table.num_rows == 0);
+}
+
+// cursor one past the last row - the place where a new row goes
+pub fn table_end(table: &Table): Cursor {
+    return Cursor::new(table, table.num_rows, true);
+}
+
+// the row the cursor points to
+pub fn Cursor.value(): Row {
+    return self.table.row_at(self.row_num);
+}
+
+// write a row at the cursor (for now this only works at the end of the table)
+pub fn Cursor.insert(row: Row): void {
+    self.table.append_row(row);
+}
+
+// move to the next row (advance)
+pub fn Cursor.advance(): void {
+    self.row_num += 1;
+    if self.row_num >= self.table.num_rows {
+        self.end_of_table = true;
+    }
+}

@@ -5,6 +5,10 @@ import pager::TABLE_MAX_ROWS;
 import statement::Statement;
 import statement::StatementType;
 
+import cursor::Cursor;
+import cursor::table_start;
+import cursor::table_end;
+
 pub enum ExecuteResult { Success, TableFull }
 
 fn execute_insert(statement: &Statement, table: &Table): ExecuteResult {
@@ -12,14 +16,21 @@ fn execute_insert(statement: &Statement, table: &Table): ExecuteResult {
         return ExecuteResult::TableFull;
     }
 
-    table.append_row(statement.row_to_insert);
+    // open a cursor at the end of the table and write the row there
+    mut cursor: Cursor = table_end(table);
+    cursor.insert(statement.row_to_insert);
+
     return ExecuteResult::Success;
 }
 
 fn execute_select(statement: &Statement, table: &Table): ExecuteResult {
-    for i in 0..table.num_rows {
-        immut row: Row = table.row_at(i);
+    // start at the first row, print it, move on, stop past the last row 
+    mut cursor: Cursor = table_start(table);
+    
+    while !cursor.end_of_table {
+        immut row: Row = cursor.value();
         print_row(&row);
+        cursor.advance();
     }
 
     return ExecuteResult::Success;
